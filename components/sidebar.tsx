@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
+import { createBrowserClient } from "@supabase/ssr"
 
 // ============================================
 // COMPONENTE: SIDEBAR RETRÁTIL (Retractable Sidebar)
@@ -26,6 +27,7 @@ export default function Sidebar({ className = "" }: SidebarProps) {
 
   // Hook do Next.js para obter a rota atual e destacar o item ativo
   const pathname = usePathname()
+  const router = useRouter()
 
   // ============================================
   // ITENS DE NAVEGAÇÃO (Navigation Items)
@@ -37,7 +39,12 @@ export default function Sidebar({ className = "" }: SidebarProps) {
     { href: "/contatos", label: "Contatos", icon: "👥" },
     { href: "/campanhas", label: "Campanhas", icon: "📢" },
     { href: "/chat", label: "Chat", icon: "💬" },
-    { href: "/conta", label: "Minha Conta", icon: "⚙️" },
+    { href: "/templates", label: "Templates", icon: "📝" },
+    { href: "/tags", label: "Tags", icon: "🏷️" },
+    { href: "/respostas-automaticas", label: "Respostas Auto", icon: "🤖" },
+    { href: "/integracao-whatsapp", label: "WhatsApp", icon: "📱" },
+    { href: "/perfil", label: "Meu Perfil", icon: "👤" },
+    { href: "/conta", label: "Configurações", icon: "⚙️" },
   ]
 
   // ============================================
@@ -49,6 +56,17 @@ export default function Sidebar({ className = "" }: SidebarProps) {
    */
   const toggleSidebar = () => {
     setIsExpanded(!isExpanded)
+  }
+
+  const handleLogout = async () => {
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    )
+
+    await supabase.auth.signOut()
+    router.push("/")
+    router.refresh()
   }
 
   // ============================================
@@ -116,14 +134,14 @@ export default function Sidebar({ className = "" }: SidebarProps) {
         {/* RODAPÉ - Botão de Logout */}
         {/* ============================================ */}
         <div className="border-t-2 border-neutral-300 pt-4">
-          <Link
-            href="/"
-            className="flex items-center gap-3 border-2 border-red-600 bg-white px-4 py-3 text-sm text-red-600 hover:bg-red-600 hover:text-white"
+          <button
+            onClick={handleLogout}
+            className="flex w-full items-center gap-3 border-2 border-red-600 bg-white px-4 py-3 text-sm text-red-600 hover:bg-red-600 hover:text-white"
             title={!isExpanded ? "Sair" : undefined}
           >
             <span className="text-lg">🚪</span>
             {isExpanded && <span>Sair</span>}
-          </Link>
+          </button>
         </div>
       </div>
     </aside>
