@@ -1,16 +1,18 @@
-import { createServerClient } from "@/lib/supabase/server"
-import { redirect } from "next/navigation"
-import TemplatesClient from "@/components/templates-client"
+// app/templates/page.tsx
+
+import { createClient } from "@/lib/supabase/server"; // <-- Mude aqui
+import { redirect } from "next/navigation";
+import TemplatesClient from "@/components/templates-client";
 
 export default async function TemplatesPage() {
-  const supabase = await createServerClient()
+  const supabase = await createClient(); // <-- E aqui
 
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/")
+    redirect("/");
   }
 
   // Buscar templates do usuário
@@ -18,11 +20,11 @@ export default async function TemplatesPage() {
     .from("templates")
     .select("*")
     .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
+    .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Erro ao buscar templates:", error)
+    console.error("Erro ao buscar templates:", error);
   }
 
-  return <TemplatesClient initialTemplates={templates || []} />
+  return <TemplatesClient initialTemplates={templates || []} />;
 }

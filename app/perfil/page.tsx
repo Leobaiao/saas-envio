@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation"
-import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/server";
 import PerfilClient from "@/components/perfil-client"
 
 export default async function PerfilPage() {
-  const supabase = await createServerClient()
+  const supabase = await createClient()
 
   const {
     data: { user },

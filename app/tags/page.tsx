@@ -1,9 +1,9 @@
-import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation"
 import TagsClient from "@/components/tags-client"
 
 export default async function TagsPage() {
-  const supabase = await createServerClient()
+  const supabase = await createClient()
 
   const {
     data: { user },

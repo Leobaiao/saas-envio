@@ -1,9 +1,9 @@
-import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation"
 import RespostasClient from "@/components/respostas-client"
 
 export default async function RespostasAutomaticasPage() {
-  const supabase = await createServerClient()
+  const supabase = await createClient()
 
   const {
     data: { user },
