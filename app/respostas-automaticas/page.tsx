@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation"
 import RespostasClient from "@/components/respostas-client"
-
+export const dynamic = 'force-dynamic'
 export default async function RespostasAutomaticasPage() {
   const supabase = await createClient()
 

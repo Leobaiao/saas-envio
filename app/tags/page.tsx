@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation"
 import TagsClient from "@/components/tags-client"
+export const dynamic = 'force-dynamic'
 
 export default async function TagsPage() {
   const supabase = await createClient()
