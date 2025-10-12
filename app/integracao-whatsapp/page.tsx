@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 import { createServerClient } from "@/lib/supabase/server"
 import WhatsAppConfigClient from "@/components/whatsapp-config-client"
+export const dynamic = 'force-dynamic'
 
 export default async function IntegracaoWhatsAppPage() {
   const supabase = await createServerClient()
