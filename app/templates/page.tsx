@@ -1,6 +1,7 @@
 import { createServerClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import TemplatesClient from "@/components/templates-client"
+export const dynamic = 'force-dynamic'
 
 export default async function TemplatesPage() {
   const supabase = await createServerClient()
