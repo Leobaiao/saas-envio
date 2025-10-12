@@ -69,7 +69,7 @@ CREATE INDEX IF NOT EXISTS idx_mensagens_user ON mensagens(user_id);
 CREATE INDEX IF NOT EXISTS idx_mensagens_contato ON mensagens(contato_id);
 CREATE INDEX IF NOT EXISTS idx_mensagens_campanha ON mensagens(campanha_id);
 CREATE INDEX IF NOT EXISTS idx_mensagens_status ON mensagens(status);
-CREATE INDEX IF NOT EXISTS idx_mensagens_agendada ON mensagens(agendada_para) WHERE agendada_para IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_mensagens_agendada ON mensagens(agendada_para_) WHERE agendada_para_ IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_mensagens_created ON mensagens(created_at DESC);
 
 -- Função para atualizar updated_at
