@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS mensagens (
   tem_midia BOOLEAN DEFAULT false,
   midia_url TEXT,
   midia_tipo VARCHAR(50),
-  agendada_para TIMESTAMP WITH TIME ZONE,
+  agendada_para_ TIMESTAMP WITH TIME ZONE,
   enviada_em TIMESTAMP WITH TIME ZONE,
   entregue_em TIMESTAMP WITH TIME ZONE,
   lida_em TIMESTAMP WITH TIME ZONE,
