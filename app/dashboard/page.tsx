@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
-import Sidebar from "@/components/sidebar"
+import DashboardClient from "@/components/dashboard-client"
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -19,8 +19,10 @@ export default async function DashboardPage() {
     .select(
       `
       id,
-      mensagem,
+      conteudo,
       created_at,
+      status,
+      tipo,
       contato_id,
       contatos (
         nome
@@ -29,49 +31,56 @@ export default async function DashboardPage() {
     )
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
-    .limit(5)
+    .limit(10)
 
-  return (
-    <div className="min-h-screen bg-neutral-100 font-mono">
-      <Sidebar />
+  // Contar total de contatos
+  const { count: totalContatos } = await supabase
+    .from("contatos")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .eq("is_active", true)
 
-      <main className="ml-64 p-6 transition-all duration-300">
-        <div className="border-2 border-neutral-900 bg-white">
-          {/* Header */}
-          <div className="border-b-2 border-neutral-900 p-4">
-            <h1 className="text-xl font-bold uppercase tracking-wider text-neutral-900">Caixa de Entrada</h1>
-          </div>
+  // Contar total de campanhas
+  const { count: totalCampanhas } = await supabase
+    .from("campanhas")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", user.id)
 
-          <div className="max-h-[calc(100vh-200px)] overflow-y-auto scrollbar-thin scrollbar-track-neutral-100 scrollbar-thumb-neutral-400 hover:scrollbar-thumb-neutral-600">
-            {!mensagens || mensagens.length === 0 ? (
-              <div className="p-8 text-center">
-                <p className="text-sm text-neutral-600">Nenhuma mensagem ainda.</p>
-                <p className="mt-2 text-xs text-neutral-500">
-                  Comece criando contatos e enviando campanhas para ver suas conversas aqui.
-                </p>
-              </div>
-            ) : (
-              mensagens.map((mensagem: any) => (
-                <a
-                  key={mensagem.id}
-                  href="/chat"
-                  className="block border-b-2 border-neutral-300 p-4 hover:bg-neutral-50"
-                >
-                  <div className="mb-2 flex items-start justify-between">
-                    <span className="text-sm font-semibold text-neutral-900">
-                      {mensagem.contatos?.nome || "Contato"}
-                    </span>
-                    <span className="text-xs text-neutral-500">
-                      {new Date(mensagem.created_at).toLocaleDateString("pt-BR")}
-                    </span>
-                  </div>
-                  <p className="text-sm text-neutral-600">{mensagem.mensagem}</p>
-                </a>
-              ))
-            )}
-          </div>
-        </div>
-      </main>
-    </div>
-  )
+  // Contar mensagens por status
+  const { data: mensagensPorStatus } = await supabase.from("mensagens").select("status").eq("user_id", user.id)
+
+  const statusCounts = {
+    enviadas: mensagensPorStatus?.filter((m) => m.status === "enviada" || m.status === "entregue").length || 0,
+    lidas: mensagensPorStatus?.filter((m) => m.status === "lida").length || 0,
+    falhas: mensagensPorStatus?.filter((m) => m.status === "falhou").length || 0,
+    pendentes: mensagensPorStatus?.filter((m) => m.status === "pendente").length || 0,
+  }
+
+  // Mensagens dos últimos 7 dias
+  const seteDiasAtras = new Date()
+  seteDiasAtras.setDate(seteDiasAtras.getDate() - 7)
+
+  const { data: mensagensRecentes } = await supabase
+    .from("mensagens")
+    .select("created_at, status")
+    .eq("user_id", user.id)
+    .gte("created_at", seteDiasAtras.toISOString())
+    .order("created_at", { ascending: true })
+
+  // Agrupar mensagens por dia
+  const mensagensPorDia: Record<string, number> = {}
+  mensagensRecentes?.forEach((msg) => {
+    const dia = new Date(msg.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })
+    mensagensPorDia[dia] = (mensagensPorDia[dia] || 0) + 1
+  })
+
+  const stats = {
+    totalContatos: totalContatos || 0,
+    totalCampanhas: totalCampanhas || 0,
+    totalMensagens: mensagensPorStatus?.length || 0,
+    ...statusCounts,
+    mensagensPorDia,
+  }
+
+  return <DashboardClient mensagens={mensagens || []} stats={stats} />
 }

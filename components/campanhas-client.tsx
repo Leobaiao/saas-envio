@@ -88,6 +88,9 @@ export default function CampanhasClient({ initialCampanhas, initialListas, userI
   const [scheduledDate, setScheduledDate] = useState("")
   const [scheduledTime, setScheduledTime] = useState("")
 
+  const [searchQuery, setSearchQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState<"all" | "sent" | "scheduled">("all")
+
   const toggleListSelection = (listId: string) => {
     setSelectedLists((prev) => (prev.includes(listId) ? prev.filter((id) => id !== listId) : [...prev, listId]))
   }
@@ -264,6 +267,14 @@ export default function CampanhasClient({ initialCampanhas, initialListas, userI
     }
   }
 
+  const filteredCampaigns = sentCampaigns.filter((campaign) => {
+    const matchesSearch =
+      campaign.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      campaign.message.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesStatus = statusFilter === "all" || campaign.status === statusFilter
+    return matchesSearch && matchesStatus
+  })
+
   return (
     <div className="min-h-screen bg-neutral-100 font-mono">
       <Sidebar />
@@ -300,18 +311,54 @@ export default function CampanhasClient({ initialCampanhas, initialListas, userI
 
           {currentView === "reports" ? (
             <div className="space-y-6">
-              {sentCampaigns.length === 0 ? (
+              <div className="border-2 border-neutral-900 bg-white p-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-neutral-700">
+                      Buscar Campanha
+                    </label>
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Nome ou mensagem..."
+                      className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-neutral-700">
+                      Filtrar por Status
+                    </label>
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value as "all" | "sent" | "scheduled")}
+                      className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none"
+                    >
+                      <option value="all">Todas</option>
+                      <option value="sent">Enviadas</option>
+                      <option value="scheduled">Agendadas</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              {filteredCampaigns.length === 0 ? (
                 <div className="border-2 border-neutral-300 bg-white p-8 text-center">
-                  <p className="text-sm text-neutral-600">Nenhuma campanha enviada ainda.</p>
-                  <button
-                    onClick={() => setCurrentView("create")}
-                    className="mt-4 border-2 border-neutral-900 bg-neutral-900 px-6 py-2 text-sm font-bold uppercase tracking-wider text-white hover:bg-neutral-800"
-                  >
-                    Criar Primeira Campanha
-                  </button>
+                  <p className="text-sm text-neutral-600">
+                    {sentCampaigns.length === 0
+                      ? "Nenhuma campanha enviada ainda."
+                      : "Nenhuma campanha encontrada com os filtros aplicados."}
+                  </p>
+                  {sentCampaigns.length === 0 && (
+                    <button
+                      onClick={() => setCurrentView("create")}
+                      className="mt-4 border-2 border-neutral-900 bg-neutral-900 px-6 py-2 text-sm font-bold uppercase tracking-wider text-white hover:bg-neutral-800"
+                    >
+                      Criar Primeira Campanha
+                    </button>
+                  )}
                 </div>
               ) : (
-                sentCampaigns.map((campaign) => (
+                filteredCampaigns.map((campaign) => (
                   <div key={campaign.id} className="border-2 border-neutral-900 bg-white p-6">
                     <div className="mb-4 flex items-start justify-between border-b-2 border-neutral-300 pb-4">
                       <div className="flex-1">
