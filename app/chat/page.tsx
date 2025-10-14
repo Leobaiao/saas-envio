@@ -122,7 +122,7 @@ export default function ChatPage() {
         // 2. Fetch Contatos
         const { data: contactsData, error: contactsError } = await supabaseClient
             .from("contatos")
-            .select("id, nome, telefone, last_message, updated_at") // Campos relevantes
+            .select("id, nome, telefone, ultima_mensagem, updated_at") // Campos relevantes
             .eq("user_id", user.id)
             .order("updated_at", { ascending: false }); 
 
@@ -133,7 +133,7 @@ export default function ChatPage() {
                 id: c.id,
                 name: c.nome,
                 telefone: c.telefone,
-                lastMessage: c.last_message || 'Nenhuma mensagem recente',
+                lastMessage: c.ultima_mensagem || 'Nenhuma mensagem recente',
                 time: new Date(c.updated_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
             }));
 
