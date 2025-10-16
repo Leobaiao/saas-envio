@@ -1,11 +1,11 @@
-import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/server"
 import { type NextRequest, NextResponse } from "next/server"
 
 export async function POST(request: NextRequest) {
   try {
     const payload = await request.json()
 
-    const supabase = await createServerClient()
+    const supabase = await createClient()
 
     // Registrar webhook no log
     await supabase.from("webhooks_log").insert({
