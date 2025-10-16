@@ -30,12 +30,17 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   // Redireciona para login se não estiver autenticado
-  if (!user && !request.nextUrl.pathname.startsWith("/auth") && request.nextUrl.pathname !== "/") {
-    const url = request.nextUrl.clone()
-    url.pathname = "/"
-    return NextResponse.redirect(url)
-  }
+  const { pathname } = request.nextUrl;
 
+// Adicione a rota do webhook à lista de rotas públicas
+  const publicRoutes = ["/", "/auth/registrar", "/auth/recuperar-senha", "/api/webhooks/whatsapp"];
+
+// Se a rota não for pública e não houver usuário, redireciona
+  if (!user && !publicRoutes.includes(pathname) && !pathname.startsWith("/auth")) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/";
+      return NextResponse.redirect(url);
+  }
   // Redireciona para dashboard se já estiver autenticado e tentar acessar login
   if (user && request.nextUrl.pathname === "/") {
     const url = request.nextUrl.clone()
