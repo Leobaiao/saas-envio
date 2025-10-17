@@ -1,126 +1,70 @@
-import { createClient } from "@/lib/supabase/server";
-import { type NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server"
+import { WuzapiMessageSchema } from "@/lib/types/webhook"
+import { WebhookService } from "@/lib/services/webhookService"
+import { createServerClient } from "@/lib/supabase/server"
 
 export async function POST(request: NextRequest) {
   try {
-    const payload = await request.json();
-    console.log("Payload recebido da Wuzapi:", payload); // Ótimo para depurar!
+    const payload = await request.json()
+    console.log("[v0] Webhook recebido:", JSON.stringify(payload, null, 2))
 
-    // MUDANÇA: O payload da Wuzapi pode vir dentro de um objeto "data"
-    if (payload.event !== "message.received" || !payload.data) {
-      // Ignora eventos que não são de recebimento de mensagem
-      return NextResponse.json({ success: true, message: "Evento ignorado" });
+    // Validar payload com Zod
+    const validationResult = WuzapiMessageSchema.safeParse(payload)
+
+    if (!validationResult.success) {
+      console.error("[v0] Payload inválido:", validationResult.error)
+      return NextResponse.json({ error: "Payload inválido", details: validationResult.error }, { status: 400 })
     }
 
-    const messageData = payload.data;
-    const supabase = await createClient();
+    const validatedPayload = validationResult.data
 
-    // Registrar webhook no log
-    await supabase.from("webhooks_log").insert({
-      tipo: "wuzapi_incoming",
-      payload: payload, // Salva o payload completo
-      processado: false,
-    });
+    // Processar diferentes tipos de eventos
+    switch (validatedPayload.event) {
+      case "message.received":
+      case "message":
+        await WebhookService.processIncomingMessage(validatedPayload)
+        break
 
-    // MUDANÇA: A lógica começa a partir de "messageData"
-    
-    // Buscar configuração do usuário pelo ID da instância da Wuzapi
-    // Assumindo que você salve o 'instanceId' na sua tabela de config
-    const { data: config } = await supabase
-      .from("whatsapp_config")
-      .select("user_id")
-      .eq("instance_id", payload.instanceId) // MUDANÇA: Usar instanceId
-      .single();
+      case "message.status":
+      case "message.ack":
+        await WebhookService.processMessageStatus(validatedPayload)
+        break
 
-    if (config) {
-      // Buscar ou criar contato
-      const telefone = messageData.from.replace("@c.us", ""); // MUDANÇA: Limpar o número
-      let { data: contato } = await supabase
-        .from("contatos")
-        .select("id")
-        .eq("user_id", config.user_id)
-        .eq("telefone", telefone)
-        .single();
-
-      if (!contato) {
-        const { data: novoContato } = await supabase
-          .from("contatos")
-          .insert({
-            user_id: config.user_id,
-            telefone: telefone,
-            // MUDANÇA: Pegar o nome de "sender.name" ou "sender.pushname"
-            nome: messageData.sender?.name || messageData.sender?.pushname || telefone,
-            is_active: true,
-          })
-          .select()
-          .single();
-
-        contato = novoContato;
-      }
-
-      // Salvar mensagem recebida
-      await supabase.from("mensagens").insert({
-        user_id: config.user_id,
-        contato_id: contato?.id,
-        tipo: "recebida",
-        // MUDANÇA: A mensagem vem direto de "body"
-        mensagem: messageData.body || "",
-        status: "entregue",
-        // Wuzapi pode ter estruturas diferentes para mídia, verifique a documentação
-        media_url: messageData.media_url || null,
-        media_type: messageData.type,
-      });
-
-      // Lógica de respostas automáticas (já está correta e adaptável)
-      const { data: respostas } = await supabase
-        .from("respostas_automaticas")
-        .select("*")
-        .eq("user_id", config.user_id)
-        .eq("is_active", true);
-
-      if (respostas) {
-        const mensagemTexto = (messageData.body || "").toLowerCase();
-        const respostaEncontrada = respostas.find((r) =>
-          mensagemTexto.includes(r.gatilho.toLowerCase())
-        );
-
-        if (respostaEncontrada) {
-          // Lógica de envio e incremento do contador (mantém igual)
-          // ...
-        }
-      }
-
-      // Atualizar última mensagem do contato (mantém igual)
-      await supabase
-        .from("contatos")
-        .update({ ultima_mensagem: new Date().toISOString() })
-        .eq("id", contato?.id);
+      default:
+        console.log("[v0] Evento ignorado:", validatedPayload.event)
+        return NextResponse.json({ success: true, message: "Evento ignorado" })
     }
 
-    // A lógica de marcar como processado pode precisar de um ID único
-    // Se o payload não for um identificador bom, considere usar o ID do log
-    // await supabase.from("webhooks_log").update({ processado: true }).eq("payload", payload);
-
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("Erro ao processar webhook da Wuzapi:", error);
-    return NextResponse.json(
-      { error: "Erro ao processar webhook" },
-      { status: 500 }
-    );
+    console.error("[v0] Erro ao processar webhook:", error)
+
+    // Registrar erro no log
+    try {
+      const supabase = await createServerClient()
+      await supabase.from("webhooks_log").insert({
+        tipo: "wuzapi_error",
+        payload: { error: error instanceof Error ? error.message : "Erro desconhecido" },
+        processado: false,
+        erro: error instanceof Error ? error.message : "Erro desconhecido",
+      })
+    } catch (logError) {
+      console.error("[v0] Erro ao registrar log:", logError)
+    }
+
+    return NextResponse.json({ error: "Erro ao processar webhook" }, { status: 500 })
   }
 }
 
-// Verificação do webhook para WUZAPI
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const token = searchParams.get("secret"); 
+  const searchParams = request.nextUrl.searchParams
+  const token = searchParams.get("secret")
 
-  const MEU_TOKEN_SECRETO = process.env.WUZAPI_WEBHOOK_SECRET || "seu_token_super_secreto";
+  const WEBHOOK_SECRET = process.env.WHATSAPP_VERIFY_TOKEN || "seu_token_super_secreto"
 
-  if (token === MEU_TOKEN_SECRETO) {
-    return NextResponse.json({ success: true, message: "Webhook verificado" }, { status: 200 });
+  if (token === WEBHOOK_SECRET) {
+    return NextResponse.json({ success: true, message: "Webhook verificado" }, { status: 200 })
   }
 
-  return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  return NextResponse.json({ error: "Token inválido" }, { status: 403 })
 }
