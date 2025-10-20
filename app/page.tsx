@@ -1,12 +1,12 @@
 "use client"
 
 import type React from "react"
-
 import { createClient } from "@/lib/supabase/client"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-export const dynamic = 'force-dynamic'
+
+export const dynamic = "force-dynamic"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -36,15 +36,14 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-muted flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="bg-white border-2 border-neutral-300 p-8">
-          <h1 className="text-2xl font-mono text-neutral-900 mb-8">Bem-vindo</h1>
+        <div className="bg-card border-2 border-border p-8">
+          <h1 className="text-2xl font-mono text-foreground mb-8">Bem-vindo</h1>
 
           <form onSubmit={handleLogin} className="space-y-6">
-            {/* Email Field */}
             <div className="space-y-2">
-              <label htmlFor="email" className="block text-sm font-mono text-neutral-700">
+              <label htmlFor="email" className="block text-sm font-mono text-muted-foreground">
                 Email
               </label>
               <input
@@ -53,14 +52,13 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full border-2 border-neutral-300 bg-white px-3 py-2 text-neutral-900 font-mono text-sm focus:outline-none focus:border-neutral-500"
+                className="w-full border-2 border-input bg-background px-3 py-2 text-foreground font-mono text-sm focus:outline-none focus:border-ring"
                 placeholder="seu@email.com"
               />
             </div>
 
-            {/* Password Field */}
             <div className="space-y-2">
-              <label htmlFor="password" className="block text-sm font-mono text-neutral-700">
+              <label htmlFor="password" className="block text-sm font-mono text-muted-foreground">
                 Senha
               </label>
               <input
@@ -69,21 +67,21 @@ export default function LoginPage() {
                 value={senha}
                 onChange={(e) => setSenha(e.target.value)}
                 required
-                className="w-full border-2 border-neutral-300 bg-white px-3 py-2 text-neutral-900 font-mono text-sm focus:outline-none focus:border-neutral-500"
+                className="w-full border-2 border-input bg-background px-3 py-2 text-foreground font-mono text-sm focus:outline-none focus:border-ring"
                 placeholder="••••••••"
               />
             </div>
 
             {error && (
-              <div className="border-2 border-red-600 bg-red-50 p-3">
-                <p className="text-sm font-mono text-red-600">{error}</p>
+              <div className="border-2 border-destructive bg-[color:var(--color-error-muted)] p-3">
+                <p className="text-sm font-mono text-destructive">{error}</p>
               </div>
             )}
 
             <button
               type="submit"
               disabled={isLoading}
-              className="block w-full bg-neutral-900 text-white font-mono text-sm py-3 border-2 border-neutral-900 hover:bg-neutral-800 transition-colors text-center disabled:opacity-50 disabled:cursor-not-allowed"
+              className="block w-full bg-primary text-primary-foreground font-mono text-sm py-3 border-2 border-primary hover:bg-primary/90 transition-colors text-center disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? "Entrando..." : "Entrar"}
             </button>
@@ -91,13 +89,13 @@ export default function LoginPage() {
             <div className="text-center space-y-2">
               <Link
                 href="/auth/registrar"
-                className="block text-sm font-mono text-neutral-600 underline hover:text-neutral-900"
+                className="block text-sm font-mono text-muted-foreground underline hover:text-foreground"
               >
                 Criar nova conta
               </Link>
               <Link
                 href="/auth/recuperar-senha"
-                className="block text-sm font-mono text-neutral-600 underline hover:text-neutral-900"
+                className="block text-sm font-mono text-muted-foreground underline hover:text-foreground"
               >
                 Esqueceu a senha?
               </Link>
