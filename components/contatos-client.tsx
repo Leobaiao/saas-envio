@@ -3,8 +3,12 @@
 import type React from "react"
 
 import { useState, useRef, useMemo } from "react"
-import Sidebar from "@/components/sidebar"
+import { AuthenticatedLayout } from "@/components/authenticated-layout"
 import { createClient } from "@/lib/supabase/client"
+import { useToast } from "@/lib/hooks/use-toast"
+import { useDebounce } from "@/lib/hooks/useDebounce"
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { Modal } from "@/components/ui/modal"
 
 interface Contact {
   id: string
@@ -43,6 +47,7 @@ interface ContatosClientProps {
 export default function ContatosClient({ initialContatos, initialListas, userId }: ContatosClientProps) {
   const supabase = createClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { showToast } = useToast()
 
   const [contacts, setContacts] = useState<Contact[]>(
     initialContatos.map((c) => ({
@@ -105,12 +110,13 @@ export default function ContatosClient({ initialContatos, initialListas, userId 
     notes: "",
   })
 
+  const debouncedSearchTerm = useDebounce(searchTerm, 300)
+
   const filteredContacts = useMemo(() => {
     let filtered = [...contacts]
 
-    // Apply search filter
-    if (searchTerm.trim()) {
-      const search = searchTerm.toLowerCase()
+    if (debouncedSearchTerm.trim()) {
+      const search = debouncedSearchTerm.toLowerCase()
       filtered = filtered.filter(
         (contact) =>
           contact.name.toLowerCase().includes(search) ||
@@ -142,11 +148,11 @@ export default function ContatosClient({ initialContatos, initialListas, userId 
     })
 
     return filtered
-  }, [contacts, searchTerm, filterStatus, sortBy])
+  }, [contacts, debouncedSearchTerm, filterStatus, sortBy])
 
   const handleCreateList = async () => {
     if (!newListName.trim()) {
-      alert("Por favor, digite um nome para a lista.")
+      showToast("Por favor, digite um nome para a lista.", "error")
       return
     }
 
@@ -177,10 +183,10 @@ export default function ContatosClient({ initialContatos, initialListas, userId 
       setLists([...lists, newList])
       setShowCreateListModal(false)
       setNewListName("")
-      alert(`Lista "${newListName}" criada com sucesso!`)
+      showToast(`Lista "${newListName}" criada com sucesso!`, "success")
     } catch (error) {
-      console.error("[v0] Erro ao criar lista:", error)
-      alert("Erro ao criar lista. Tente novamente.")
+      console.error("Erro ao criar lista:", error)
+      showToast("Erro ao criar lista. Tente novamente.", "error")
     } finally {
       setCreatingList(false)
     }
@@ -216,7 +222,7 @@ export default function ContatosClient({ initialContatos, initialListas, userId 
 
   const handleSaveContact = async () => {
     if (!editForm?.name.trim() || !editForm?.number.trim()) {
-      alert("Nome e número são obrigatórios.")
+      showToast("Nome e número são obrigatórios.", "error")
       return
     }
 
@@ -240,10 +246,10 @@ export default function ContatosClient({ initialContatos, initialListas, userId 
       setContacts(contacts.map((c) => (c.id === editForm.id ? editForm : c)))
       setEditingContact(null)
       setEditForm(null)
-      alert("Contato atualizado com sucesso!")
+      showToast("Contato atualizado com sucesso!", "success")
     } catch (error) {
-      console.error("[v0] Erro ao salvar contato:", error)
-      alert("Erro ao salvar contato. Tente novamente.")
+      console.error("Erro ao salvar contato:", error)
+      showToast("Erro ao salvar contato. Tente novamente.", "error")
     } finally {
       setSaving(false)
     }
@@ -271,10 +277,10 @@ export default function ContatosClient({ initialContatos, initialListas, userId 
 
       setContacts(contacts.filter((c) => c.id !== deletingContact.id))
       setDeletingContact(null)
-      alert(`Contato "${deletingContact.name}" excluído com sucesso!`)
+      showToast(`Contato "${deletingContact.name}" excluído com sucesso!`, "success")
     } catch (error) {
-      console.error("[v0] Erro ao excluir contato:", error)
-      alert("Erro ao excluir contato. Tente novamente.")
+      console.error("Erro ao excluir contato:", error)
+      showToast("Erro ao excluir contato. Tente novamente.", "error")
     } finally {
       setDeleting(false)
     }
@@ -286,7 +292,7 @@ export default function ContatosClient({ initialContatos, initialListas, userId 
 
   const handleAddContact = async () => {
     if (!newContact.name.trim() || !newContact.number.trim()) {
-      alert("Nome e número são obrigatórios.")
+      showToast("Nome e número são obrigatórios.", "error")
       return
     }
 
@@ -330,10 +336,10 @@ export default function ContatosClient({ initialContatos, initialListas, userId 
       setContacts([addedContact, ...contacts])
       setShowAddContactModal(false)
       setNewContact({ name: "", number: "", email: "", company: "", notes: "" })
-      alert("Contato adicionado com sucesso!")
+      showToast("Contato adicionado com sucesso!", "success")
     } catch (error) {
-      console.error("[v0] Erro ao adicionar contato:", error)
-      alert("Erro ao adicionar contato. Tente novamente.")
+      console.error("Erro ao adicionar contato:", error)
+      showToast("Erro ao adicionar contato. Tente novamente.", "error")
     } finally {
       setAddingContact(false)
     }
@@ -375,7 +381,7 @@ export default function ContatosClient({ initialContatos, initialListas, userId 
       }
 
       if (contactsToImport.length === 0) {
-        alert("Nenhum contato válido encontrado no arquivo.")
+        showToast("Nenhum contato válido encontrado no arquivo.", "warning")
         setImporting(false)
         return
       }
@@ -404,14 +410,14 @@ export default function ContatosClient({ initialContatos, initialListas, userId 
 
       setContacts([...newContacts, ...contacts])
       setShowImportModal(false)
-      alert(`${newContacts.length} contatos importados com sucesso!`)
+      showToast(`${newContacts.length} contatos importados com sucesso!`, "success")
 
       if (fileInputRef.current) {
         fileInputRef.current.value = ""
       }
     } catch (error) {
-      console.error("[v0] Erro ao importar contatos:", error)
-      alert("Erro ao importar contatos. Verifique o formato do arquivo.")
+      console.error("Erro ao importar contatos:", error)
+      showToast("Erro ao importar contatos. Verifique o formato do arquivo.", "error")
     } finally {
       setImporting(false)
     }
@@ -458,695 +464,671 @@ export default function ContatosClient({ initialContatos, initialListas, userId 
         setContactLists([...contactLists, listId])
       }
     } catch (error) {
-      console.error("[v0] Erro ao atualizar listas:", error)
-      alert("Erro ao atualizar listas. Tente novamente.")
+      console.error("Erro ao atualizar listas:", error)
+      showToast("Erro ao atualizar listas. Tente novamente.", "error")
     }
   }
 
   return (
-    <div className="min-h-screen bg-neutral-100 font-mono">
-      <Sidebar />
-
-      <main className="ml-64 flex min-h-screen transition-all duration-300">
-        <div className="max-h-screen flex-1 overflow-y-auto p-8">
-          <div className="mb-6 flex items-center justify-between border-b-2 border-neutral-900 pb-4">
-            <h1 className="text-2xl font-bold uppercase tracking-wider text-neutral-900">Contatos</h1>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowImportModal(true)}
-                className="border-2 border-neutral-900 bg-white px-4 py-2 text-sm font-bold uppercase tracking-wider text-neutral-900 hover:bg-neutral-50"
-              >
-                📥 Importar CSV
-              </button>
-              <button
-                onClick={() => setShowAddContactModal(true)}
-                className="border-2 border-neutral-900 bg-neutral-900 px-4 py-2 text-sm font-bold uppercase tracking-wider text-white hover:bg-neutral-800"
-              >
-                + Adicionar Contato
-              </button>
-            </div>
-          </div>
-
-          <div className="mb-6 space-y-4 border-4 border-neutral-900 bg-white p-4">
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <input
-                  type="text"
-                  placeholder="Buscar por nome, número, email ou empresa..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none"
-                />
+    <AuthenticatedLayout>
+      <div className="min-h-screen bg-neutral-100 font-mono">
+        <main className="flex min-h-screen transition-all duration-300">
+          <div className="max-h-screen flex-1 overflow-y-auto p-4 md:p-8">
+            <div className="mb-6 flex flex-col gap-4 border-b-2 border-neutral-900 pb-4 md:flex-row md:items-center md:justify-between">
+              <h1 className="text-xl font-bold uppercase tracking-wider text-neutral-900 md:text-2xl">Contatos</h1>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button
+                  onClick={() => setShowImportModal(true)}
+                  aria-label="Importar contatos via CSV"
+                  className="border-2 border-neutral-900 bg-white px-4 py-2 text-sm font-bold uppercase tracking-wider text-neutral-900 hover:bg-neutral-50"
+                >
+                  📥 Importar CSV
+                </button>
+                <button
+                  onClick={() => setShowAddContactModal(true)}
+                  aria-label="Adicionar novo contato"
+                  className="border-2 border-neutral-900 bg-neutral-900 px-4 py-2 text-sm font-bold uppercase tracking-wider text-white hover:bg-neutral-800"
+                >
+                  + Adicionar Contato
+                </button>
               </div>
-              <button
-                onClick={() => setSearchTerm("")}
-                className="border-2 border-neutral-400 bg-white px-4 py-2 text-sm font-bold uppercase tracking-wider text-neutral-700 hover:border-neutral-900"
-              >
-                Limpar
-              </button>
             </div>
 
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase text-neutral-700">Status:</span>
+            <div className="mb-6 space-y-4 border-4 border-neutral-900 bg-white p-4">
+              <div className="flex flex-col gap-4 md:flex-row">
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    placeholder="Buscar por nome, número, email ou empresa..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none"
+                  />
+                </div>
                 <button
-                  onClick={() => setFilterStatus("all")}
-                  className={`border-2 px-3 py-1 text-xs font-bold uppercase ${
-                    filterStatus === "all"
-                      ? "border-neutral-900 bg-neutral-900 text-white"
-                      : "border-neutral-400 bg-white text-neutral-700 hover:border-neutral-900"
-                  }`}
+                  onClick={() => setSearchTerm("")}
+                  className="border-2 border-neutral-400 bg-white px-4 py-2 text-sm font-bold uppercase tracking-wider text-neutral-700 hover:border-neutral-900 md:w-auto"
                 >
-                  Todos
-                </button>
-                <button
-                  onClick={() => setFilterStatus("active")}
-                  className={`border-2 px-3 py-1 text-xs font-bold uppercase ${
-                    filterStatus === "active"
-                      ? "border-green-600 bg-green-600 text-white"
-                      : "border-neutral-400 bg-white text-neutral-700 hover:border-neutral-900"
-                  }`}
-                >
-                  Ativos
-                </button>
-                <button
-                  onClick={() => setFilterStatus("inactive")}
-                  className={`border-2 px-3 py-1 text-xs font-bold uppercase ${
-                    filterStatus === "inactive"
-                      ? "border-red-600 bg-red-600 text-white"
-                      : "border-neutral-400 bg-white text-neutral-700 hover:border-neutral-900"
-                  }`}
-                >
-                  Inativos
+                  Limpar
                 </button>
               </div>
 
-              <div className="ml-auto flex items-center gap-2">
-                <span className="text-xs font-bold uppercase text-neutral-700">Ordenar:</span>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
-                  className="border-2 border-neutral-400 bg-white px-3 py-2 text-xs font-bold uppercase text-neutral-900 focus:border-neutral-900 focus:outline-none"
-                >
-                  <option value="name">Nome (A-Z)</option>
-                  <option value="recent">Mais Recentes</option>
-                  <option value="orders">Mais Pedidos</option>
-                </select>
+              <div className="flex flex-col items-center gap-4 md:flex-row">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase text-neutral-700">Status:</span>
+                  <button
+                    onClick={() => setFilterStatus("all")}
+                    className={`border-2 px-3 py-1 text-xs font-bold uppercase ${
+                      filterStatus === "all"
+                        ? "border-neutral-900 bg-neutral-900 text-white"
+                        : "border-neutral-400 bg-white text-neutral-700 hover:border-neutral-900"
+                    }`}
+                  >
+                    Todos
+                  </button>
+                  <button
+                    onClick={() => setFilterStatus("active")}
+                    className={`border-2 px-3 py-1 text-xs font-bold uppercase ${
+                      filterStatus === "active"
+                        ? "border-green-600 bg-green-600 text-white"
+                        : "border-neutral-400 bg-white text-neutral-700 hover:border-neutral-900"
+                    }`}
+                  >
+                    Ativos
+                  </button>
+                  <button
+                    onClick={() => setFilterStatus("inactive")}
+                    className={`border-2 px-3 py-1 text-xs font-bold uppercase ${
+                      filterStatus === "inactive"
+                        ? "border-red-600 bg-red-600 text-white"
+                        : "border-neutral-400 bg-white text-neutral-700 hover:border-neutral-900"
+                    }`}
+                  >
+                    Inativos
+                  </button>
+                </div>
+
+                <div className="ml-auto flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase text-neutral-700">Ordenar:</span>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    className="border-2 border-neutral-400 bg-white px-3 py-2 text-xs font-bold uppercase text-neutral-900 focus:border-neutral-900 focus:outline-none"
+                  >
+                    <option value="name">Nome (A-Z)</option>
+                    <option value="recent">Mais Recentes</option>
+                    <option value="orders">Mais Pedidos</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="border-t-2 border-neutral-300 pt-3 text-xs text-neutral-600">
+                Mostrando {filteredContacts.length} de {contacts.length} contatos
               </div>
             </div>
 
-            <div className="border-t-2 border-neutral-300 pt-3 text-xs text-neutral-600">
-              Mostrando {filteredContacts.length} de {contacts.length} contatos
-            </div>
-          </div>
+            <div className="overflow-x-auto border-2 border-neutral-900 bg-white">
+              <div className="min-w-[800px]">
+                <div className="grid grid-cols-[2fr_2fr_1fr_1fr_1fr] border-b-2 border-neutral-900 bg-neutral-200">
+                  <div className="border-r-2 border-neutral-900 px-4 py-3 text-sm font-bold uppercase tracking-wider text-neutral-900">
+                    Nome
+                  </div>
+                  <div className="border-r-2 border-neutral-900 px-4 py-3 text-sm font-bold uppercase tracking-wider text-neutral-900">
+                    Número
+                  </div>
+                  <div className="border-r-2 border-neutral-900 px-4 py-3 text-sm font-bold uppercase tracking-wider text-neutral-900">
+                    Pedidos
+                  </div>
+                  <div className="border-r-2 border-neutral-900 px-4 py-3 text-sm font-bold uppercase tracking-wider text-neutral-900">
+                    Última Msg
+                  </div>
+                  <div className="px-4 py-3 text-sm font-bold uppercase tracking-wider text-neutral-900">Ações</div>
+                </div>
 
-          <div className="border-2 border-neutral-900 bg-white">
-            <div className="grid grid-cols-[2fr_2fr_1fr_1fr_1fr] border-b-2 border-neutral-900 bg-neutral-200">
-              <div className="border-r-2 border-neutral-900 px-4 py-3 text-sm font-bold uppercase tracking-wider text-neutral-900">
-                Nome
-              </div>
-              <div className="border-r-2 border-neutral-900 px-4 py-3 text-sm font-bold uppercase tracking-wider text-neutral-900">
-                Número
-              </div>
-              <div className="border-r-2 border-neutral-900 px-4 py-3 text-sm font-bold uppercase tracking-wider text-neutral-900">
-                Pedidos
-              </div>
-              <div className="border-r-2 border-neutral-900 px-4 py-3 text-sm font-bold uppercase tracking-wider text-neutral-900">
-                Última Msg
-              </div>
-              <div className="px-4 py-3 text-sm font-bold uppercase tracking-wider text-neutral-900">Ações</div>
-            </div>
-
-            {filteredContacts.length === 0 ? (
-              <div className="p-8 text-center">
-                <p className="text-sm text-neutral-600">
-                  {searchTerm || filterStatus !== "all"
-                    ? "Nenhum contato encontrado com os filtros aplicados."
-                    : "Nenhum contato cadastrado ainda."}
-                </p>
-                <p className="mt-2 text-xs text-neutral-500">
-                  {searchTerm || filterStatus !== "all"
-                    ? "Tente ajustar os filtros de busca."
-                    : "Importe contatos ou adicione manualmente para começar."}
-                </p>
-              </div>
-            ) : (
-              filteredContacts.map((contact, index) => (
-                <div
-                  key={contact.id}
-                  className={`grid grid-cols-[2fr_2fr_1fr_1fr_1fr] ${index !== filteredContacts.length - 1 ? "border-b-2 border-neutral-300" : ""} ${!contact.is_active ? "bg-neutral-100 opacity-60" : ""}`}
-                >
-                  <div className="flex items-center gap-2 border-r-2 border-neutral-300 px-4 py-3">
-                    <span className="text-sm text-neutral-900">{contact.name}</span>
-                    {!contact.is_active && (
-                      <span className="border border-red-600 bg-red-50 px-2 py-0.5 text-xs font-bold uppercase text-red-600">
-                        Inativo
-                      </span>
-                    )}
+                {filteredContacts.length === 0 ? (
+                  <div className="p-8 text-center">
+                    <p className="text-sm text-neutral-600">
+                      {searchTerm || filterStatus !== "all"
+                        ? "Nenhum contato encontrado com os filtros aplicados."
+                        : "Nenhum contato cadastrado ainda."}
+                    </p>
+                    <p className="mt-2 text-xs text-neutral-500">
+                      {searchTerm || filterStatus !== "all"
+                        ? "Tente ajustar os filtros de busca."
+                        : "Importe contatos ou adicione manualmente para começar."}
+                    </p>
                   </div>
-                  <div className="border-r-2 border-neutral-300 px-4 py-3 text-sm text-neutral-700">
-                    {contact.number}
-                  </div>
-                  <div className="border-r-2 border-neutral-300 px-4 py-3 text-center text-sm font-bold text-neutral-900">
-                    {contact.orders_count || 0}
-                  </div>
-                  <div className="border-r-2 border-neutral-300 px-4 py-3 text-xs text-neutral-600">
-                    {contact.last_message_date
-                      ? new Date(contact.last_message_date).toLocaleDateString("pt-BR")
-                      : "Nunca"}
-                  </div>
-                  <div className="flex items-center gap-2 px-4 py-3">
-                    <button
-                      onClick={() => handleManageContactLists(contact)}
-                      className="border border-blue-600 bg-blue-600 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white hover:bg-blue-700"
-                      title="Gerenciar listas"
+                ) : (
+                  filteredContacts.map((contact, index) => (
+                    <div
+                      key={contact.id}
+                      className={`grid grid-cols-[2fr_2fr_1fr_1fr_1fr] ${index !== filteredContacts.length - 1 ? "border-b-2 border-neutral-300" : ""} ${!contact.is_active ? "bg-neutral-100 opacity-60" : ""}`}
                     >
-                      Listas
-                    </button>
-                    <button
-                      onClick={() => handleViewContact(contact)}
-                      className="border border-neutral-400 bg-white px-3 py-1 text-xs font-bold uppercase tracking-wider text-neutral-700 hover:border-neutral-900 hover:bg-neutral-50"
-                      title="Ver detalhes"
-                    >
-                      Ver
-                    </button>
-                    <button
-                      onClick={() => handleEditContact(contact)}
-                      className="border border-neutral-900 bg-neutral-900 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white hover:bg-neutral-800"
-                      title="Editar contato"
-                    >
-                      Editar
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        <aside className="w-80 border-l-2 border-neutral-900 bg-white p-6">
-          <div className="mb-4 border-b-2 border-neutral-900 pb-3">
-            <h2 className="text-lg font-bold uppercase tracking-wider text-neutral-900">Listas de Clientes</h2>
-          </div>
-
-          <button
-            onClick={() => setShowCreateListModal(true)}
-            className="mb-6 w-full border-2 border-neutral-900 bg-neutral-900 px-4 py-3 text-sm font-bold uppercase tracking-wider text-white hover:bg-neutral-800"
-          >
-            + Criar Nova Lista
-          </button>
-
-          <div className="space-y-2">
-            {lists.map((list) => (
-              <div key={list.id} className="border-2 border-neutral-400 bg-neutral-50 p-4 hover:border-neutral-900">
-                <div className="mb-1 text-sm font-bold text-neutral-900">{list.name}</div>
-                <div className="text-xs text-neutral-600">{list.count} contatos</div>
-              </div>
-            ))}
-          </div>
-        </aside>
-      </main>
-
-      {showCreateListModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/50">
-          <div className="w-full max-w-md border-4 border-neutral-900 bg-white p-6">
-            <h2 className="mb-6 border-b-2 border-neutral-900 pb-3 text-xl font-bold uppercase tracking-wider text-neutral-900">
-              Criar Nova Lista
-            </h2>
-
-            <div className="mb-6">
-              <label className="mb-2 block text-sm font-bold uppercase tracking-wider text-neutral-900">
-                Nome da Lista
-              </label>
-              <input
-                type="text"
-                value={newListName}
-                onChange={(e) => setNewListName(e.target.value)}
-                disabled={creatingList}
-                placeholder="Ex: Clientes VIP"
-                className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none disabled:opacity-50"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !creatingList) {
-                    handleCreateList()
-                  }
-                }}
-              />
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={handleCancelCreateList}
-                disabled={creatingList}
-                className="flex-1 border-2 border-neutral-400 bg-white px-4 py-3 text-sm font-bold uppercase tracking-wider text-neutral-700 hover:border-neutral-900 disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleCreateList}
-                disabled={creatingList || !newListName.trim()}
-                className="flex-1 border-2 border-neutral-900 bg-neutral-900 px-4 py-3 text-sm font-bold uppercase tracking-wider text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {creatingList ? "Criando..." : "Criar Lista"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {selectedContact && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/50 p-4">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto border-4 border-neutral-900 bg-white p-6">
-            <div className="mb-6 flex items-center justify-between border-b-2 border-neutral-900 pb-3">
-              <h2 className="text-xl font-bold uppercase tracking-wider text-neutral-900">Detalhes do Contato</h2>
-              <button
-                onClick={handleCloseDetails}
-                className="border-2 border-neutral-400 bg-white px-4 py-2 text-sm font-bold uppercase tracking-wider text-neutral-700 hover:border-neutral-900"
-              >
-                Fechar
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="border-2 border-neutral-300 bg-neutral-50 p-4">
-                <div className="mb-1 text-xs font-bold uppercase tracking-wider text-neutral-600">Nome</div>
-                <div className="text-lg font-bold text-neutral-900">{selectedContact.name}</div>
-              </div>
-
-              <div className="border-2 border-neutral-300 bg-neutral-50 p-4">
-                <div className="mb-1 text-xs font-bold uppercase tracking-wider text-neutral-600">Número</div>
-                <div className="text-lg text-neutral-900">{selectedContact.number}</div>
-              </div>
-
-              {selectedContact.email && (
-                <div className="border-2 border-neutral-300 bg-neutral-50 p-4">
-                  <div className="mb-1 text-xs font-bold uppercase tracking-wider text-neutral-600">Email</div>
-                  <div className="text-lg text-neutral-900">{selectedContact.email}</div>
-                </div>
-              )}
-
-              {selectedContact.company && (
-                <div className="border-2 border-neutral-300 bg-neutral-50 p-4">
-                  <div className="mb-1 text-xs font-bold uppercase tracking-wider text-neutral-600">Empresa</div>
-                  <div className="text-lg text-neutral-900">{selectedContact.company}</div>
-                </div>
-              )}
-
-              {selectedContact.notes && (
-                <div className="border-2 border-neutral-300 bg-neutral-50 p-4">
-                  <div className="mb-1 text-xs font-bold uppercase tracking-wider text-neutral-600">Notas</div>
-                  <div className="text-sm text-neutral-900">{selectedContact.notes}</div>
-                </div>
-              )}
-            </div>
-
-            <div className="mt-6 flex gap-3">
-              <button
-                onClick={() => handleEditContact(selectedContact)}
-                className="flex-1 border-2 border-neutral-900 bg-neutral-900 px-4 py-3 text-sm font-bold uppercase tracking-wider text-white hover:bg-neutral-800"
-              >
-                Editar Contato
-              </button>
-              <button
-                onClick={() => handleDeleteContact(selectedContact)}
-                className="border-2 border-red-600 bg-red-600 px-6 py-3 text-sm font-bold uppercase tracking-wider text-white hover:bg-red-700"
-              >
-                Excluir
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {editingContact && editForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-neutral-900/50 p-4">
-          <div className="my-8 w-full max-w-2xl border-4 border-neutral-900 bg-white p-6">
-            <h2 className="mb-6 border-b-2 border-neutral-900 pb-3 text-xl font-bold uppercase tracking-wider text-neutral-900">
-              Editar Contato
-            </h2>
-
-            <div className="space-y-4">
-              <div>
-                <label className="mb-2 block text-sm font-bold uppercase tracking-wider text-neutral-900">Nome *</label>
-                <input
-                  type="text"
-                  value={editForm.name}
-                  onChange={(e) => handleEditFormChange("name", e.target.value)}
-                  disabled={saving}
-                  className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none disabled:opacity-50"
-                  placeholder="Nome completo"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-bold uppercase tracking-wider text-neutral-900">
-                  Número *
-                </label>
-                <input
-                  type="tel"
-                  value={editForm.number}
-                  onChange={(e) => handleEditFormChange("number", e.target.value)}
-                  disabled={saving}
-                  className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none disabled:opacity-50"
-                  placeholder="+55 11 98765-4321"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-bold uppercase tracking-wider text-neutral-900">Email</label>
-                <input
-                  type="email"
-                  value={editForm.email || ""}
-                  onChange={(e) => handleEditFormChange("email", e.target.value)}
-                  disabled={saving}
-                  className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none disabled:opacity-50"
-                  placeholder="email@exemplo.com"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-bold uppercase tracking-wider text-neutral-900">
-                  Empresa
-                </label>
-                <input
-                  type="text"
-                  value={editForm.company || ""}
-                  onChange={(e) => handleEditFormChange("company", e.target.value)}
-                  disabled={saving}
-                  className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none disabled:opacity-50"
-                  placeholder="Nome da empresa"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-bold uppercase tracking-wider text-neutral-900">Notas</label>
-                <textarea
-                  value={editForm.notes || ""}
-                  onChange={(e) => handleEditFormChange("notes", e.target.value)}
-                  disabled={saving}
-                  rows={3}
-                  className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none disabled:opacity-50"
-                  placeholder="Observações sobre o contato..."
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-bold uppercase tracking-wider text-neutral-900">
-                  Tags (separadas por vírgula)
-                </label>
-                <input
-                  type="text"
-                  value={editForm.tags?.join(", ") || ""}
-                  onChange={(e) =>
-                    handleEditFormChange(
-                      "tags",
-                      e.target.value.split(",").map((tag) => tag.trim()),
-                    )
-                  }
-                  disabled={saving}
-                  className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none disabled:opacity-50"
-                  placeholder="VIP, Ativo, Lead"
-                />
-              </div>
-            </div>
-
-            <div className="mt-6 flex gap-3">
-              <button
-                onClick={handleCancelEdit}
-                disabled={saving}
-                className="flex-1 border-2 border-neutral-400 bg-white px-4 py-3 text-sm font-bold uppercase tracking-wider text-neutral-700 hover:border-neutral-900 disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleSaveContact}
-                disabled={saving || !editForm.name.trim() || !editForm.number.trim()}
-                className="flex-1 border-2 border-neutral-900 bg-neutral-900 px-4 py-3 text-sm font-bold uppercase tracking-wider text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {saving ? "Salvando..." : "Salvar Alterações"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {deletingContact && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/50">
-          <div className="w-full max-w-md border-4 border-red-600 bg-white p-6">
-            <h2 className="mb-4 border-b-2 border-red-600 pb-3 text-xl font-bold uppercase tracking-wider text-red-600">
-              Confirmar Exclusão
-            </h2>
-
-            <div className="mb-6">
-              <p className="mb-3 text-sm text-neutral-900">
-                Tem certeza que deseja excluir o contato <strong>{deletingContact.name}</strong>?
-              </p>
-              <div className="border-2 border-red-200 bg-red-50 p-3">
-                <p className="text-xs font-bold uppercase tracking-wider text-red-800">Atenção</p>
-                <p className="mt-1 text-xs text-red-700">
-                  Esta ação não pode ser desfeita. Todos os dados do contato serão permanentemente removidos.
-                </p>
-              </div>
-            </div>
-
-            <div className="mb-6 border-2 border-neutral-300 bg-neutral-50 p-4">
-              <div className="mb-2 text-sm font-bold text-neutral-900">{deletingContact.name}</div>
-              <div className="text-xs text-neutral-700">{deletingContact.number}</div>
-              {deletingContact.email && <div className="text-xs text-neutral-700">{deletingContact.email}</div>}
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={handleCancelDelete}
-                disabled={deleting}
-                className="flex-1 border-2 border-neutral-400 bg-white px-4 py-3 text-sm font-bold uppercase tracking-wider text-neutral-700 hover:border-neutral-900 disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleConfirmDelete}
-                disabled={deleting}
-                className="flex-1 border-2 border-red-600 bg-red-600 px-4 py-3 text-sm font-bold uppercase tracking-wider text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {deleting ? "Excluindo..." : "Sim, Excluir"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showAddContactModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/50 p-4">
-          <div className="w-full max-w-2xl border-4 border-neutral-900 bg-white p-6">
-            <h2 className="mb-6 border-b-2 border-neutral-900 pb-3 text-xl font-bold uppercase tracking-wider text-neutral-900">
-              Adicionar Novo Contato
-            </h2>
-
-            <div className="space-y-4">
-              <div>
-                <label className="mb-2 block text-sm font-bold uppercase tracking-wider text-neutral-900">Nome *</label>
-                <input
-                  type="text"
-                  value={newContact.name}
-                  onChange={(e) => setNewContact({ ...newContact, name: e.target.value })}
-                  disabled={addingContact}
-                  className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none disabled:opacity-50"
-                  placeholder="Nome completo"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-bold uppercase tracking-wider text-neutral-900">
-                  Número *
-                </label>
-                <input
-                  type="tel"
-                  value={newContact.number}
-                  onChange={(e) => setNewContact({ ...newContact, number: e.target.value })}
-                  disabled={addingContact}
-                  className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none disabled:opacity-50"
-                  placeholder="+55 11 98765-4321"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-bold uppercase tracking-wider text-neutral-900">Email</label>
-                <input
-                  type="email"
-                  value={newContact.email}
-                  onChange={(e) => setNewContact({ ...newContact, email: e.target.value })}
-                  disabled={addingContact}
-                  className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none disabled:opacity-50"
-                  placeholder="email@exemplo.com"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-bold uppercase tracking-wider text-neutral-900">
-                  Empresa
-                </label>
-                <input
-                  type="text"
-                  value={newContact.company}
-                  onChange={(e) => setNewContact({ ...newContact, company: e.target.value })}
-                  disabled={addingContact}
-                  className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none disabled:opacity-50"
-                  placeholder="Nome da empresa"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-bold uppercase tracking-wider text-neutral-900">Notas</label>
-                <textarea
-                  value={newContact.notes}
-                  onChange={(e) => setNewContact({ ...newContact, notes: e.target.value })}
-                  disabled={addingContact}
-                  rows={3}
-                  className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none disabled:opacity-50"
-                  placeholder="Observações sobre o contato..."
-                />
-              </div>
-            </div>
-
-            <div className="mt-6 flex gap-3">
-              <button
-                onClick={() => {
-                  setShowAddContactModal(false)
-                  setNewContact({ name: "", number: "", email: "", company: "", notes: "" })
-                }}
-                disabled={addingContact}
-                className="flex-1 border-2 border-neutral-400 bg-white px-4 py-3 text-sm font-bold uppercase tracking-wider text-neutral-700 hover:border-neutral-900 disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleAddContact}
-                disabled={addingContact || !newContact.name.trim() || !newContact.number.trim()}
-                className="flex-1 border-2 border-neutral-900 bg-neutral-900 px-4 py-3 text-sm font-bold uppercase tracking-wider text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {addingContact ? "Adicionando..." : "Adicionar Contato"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showImportModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/50 p-4">
-          <div className="w-full max-w-2xl border-4 border-neutral-900 bg-white p-6">
-            <h2 className="mb-6 border-b-2 border-neutral-900 pb-3 text-xl font-bold uppercase tracking-wider text-neutral-900">
-              Importar Contatos via CSV
-            </h2>
-
-            <div className="mb-6 border-2 border-blue-200 bg-blue-50 p-4">
-              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-blue-800">Formato do arquivo CSV</p>
-              <p className="mb-3 text-xs text-blue-700">
-                O arquivo deve conter uma linha por contato com os campos separados por vírgula:
-              </p>
-              <code className="block border border-blue-300 bg-white p-2 text-xs text-neutral-900">
-                nome,telefone,email,empresa,notas
-              </code>
-              <p className="mt-3 text-xs text-blue-700">
-                Exemplo: João Silva,+55 11 98765-4321,joao@email.com,Empresa XYZ,Cliente VIP
-              </p>
-            </div>
-
-            <div className="mb-6">
-              <label className="mb-2 block text-sm font-bold uppercase tracking-wider text-neutral-900">
-                Selecione o arquivo CSV
-              </label>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv"
-                onChange={handleImportCSV}
-                disabled={importing}
-                className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none disabled:opacity-50"
-              />
-            </div>
-
-            {importing && (
-              <div className="mb-6 border-2 border-green-200 bg-green-50 p-4">
-                <p className="text-sm font-bold text-green-800">Importando contatos...</p>
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowImportModal(false)
-                  if (fileInputRef.current) {
-                    fileInputRef.current.value = ""
-                  }
-                }}
-                disabled={importing}
-                className="flex-1 border-2 border-neutral-400 bg-white px-4 py-3 text-sm font-bold uppercase tracking-wider text-neutral-700 hover:border-neutral-900 disabled:opacity-50"
-              >
-                Fechar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showListManagementModal && selectedContactForLists && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/50 p-4">
-          <div className="w-full max-w-md border-4 border-neutral-900 bg-white p-6">
-            <h2 className="mb-6 border-b-2 border-neutral-900 pb-3 text-xl font-bold uppercase tracking-wider text-neutral-900">
-              Gerenciar Listas
-            </h2>
-
-            <div className="mb-6">
-              <p className="mb-4 text-sm text-neutral-700">
-                Contato: <strong>{selectedContactForLists.name}</strong>
-              </p>
-
-              {lists.length === 0 ? (
-                <div className="border-2 border-neutral-300 bg-neutral-50 p-4 text-center">
-                  <p className="text-sm text-neutral-600">Nenhuma lista criada ainda.</p>
-                  <p className="mt-1 text-xs text-neutral-500">Crie uma lista primeiro para adicionar contatos.</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {lists.map((list) => {
-                    const isInList = contactLists.includes(list.id)
-                    return (
-                      <button
-                        key={list.id}
-                        onClick={() => handleToggleList(list.id)}
-                        className={`flex w-full items-center justify-between border-2 p-3 text-left transition-colors ${
-                          isInList
-                            ? "border-green-600 bg-green-50 hover:bg-green-100"
-                            : "border-neutral-400 bg-white hover:border-neutral-900"
-                        }`}
-                      >
-                        <span className="text-sm font-bold text-neutral-900">{list.name}</span>
-                        <span
-                          className={`text-xs font-bold uppercase tracking-wider ${
-                            isInList ? "text-green-700" : "text-neutral-500"
-                          }`}
+                      <div className="flex items-center gap-2 border-r-2 border-neutral-300 px-4 py-3">
+                        <span className="text-sm text-neutral-900">{contact.name}</span>
+                        {!contact.is_active && (
+                          <span className="border border-red-600 bg-red-50 px-2 py-0.5 text-xs font-bold uppercase text-red-600">
+                            Inativo
+                          </span>
+                        )}
+                      </div>
+                      <div className="border-r-2 border-neutral-300 px-4 py-3 text-sm text-neutral-700">
+                        {contact.number}
+                      </div>
+                      <div className="border-r-2 border-neutral-300 px-4 py-3 text-center text-sm font-bold text-neutral-900">
+                        {contact.orders_count || 0}
+                      </div>
+                      <div className="border-r-2 border-neutral-300 px-4 py-3 text-xs text-neutral-600">
+                        {contact.last_message_date
+                          ? new Date(contact.last_message_date).toLocaleDateString("pt-BR")
+                          : "Nunca"}
+                      </div>
+                      <div className="flex items-center gap-2 px-4 py-3">
+                        <button
+                          onClick={() => handleManageContactLists(contact)}
+                          className="border border-blue-600 bg-blue-600 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white hover:bg-blue-700"
+                          title="Gerenciar listas"
                         >
-                          {isInList ? "✓ Na lista" : "+ Adicionar"}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
+                          Listas
+                        </button>
+                        <button
+                          onClick={() => handleViewContact(contact)}
+                          className="border border-neutral-400 bg-white px-3 py-1 text-xs font-bold uppercase tracking-wider text-neutral-700 hover:border-neutral-900 hover:bg-neutral-50"
+                          title="Ver detalhes"
+                        >
+                          Ver
+                        </button>
+                        <button
+                          onClick={() => handleEditContact(contact)}
+                          className="border border-neutral-900 bg-neutral-900 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white hover:bg-neutral-800"
+                          title="Editar contato"
+                        >
+                          Editar
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+
+          <aside className="hidden w-80 border-l-2 border-neutral-900 bg-white p-6 lg:block">
+            <div className="mb-4 border-b-2 border-neutral-900 pb-3">
+              <h2 className="text-lg font-bold uppercase tracking-wider text-neutral-900">Listas de Clientes</h2>
             </div>
 
             <button
-              onClick={() => {
-                setShowListManagementModal(false)
-                setSelectedContactForLists(null)
-                setContactLists([])
+              onClick={() => setShowCreateListModal(true)}
+              className="mb-6 w-full border-2 border-neutral-900 bg-neutral-900 px-4 py-3 text-sm font-bold uppercase tracking-wider text-white hover:bg-neutral-800"
+            >
+              + Criar Nova Lista
+            </button>
+
+            <div className="space-y-2">
+              {lists.map((list) => (
+                <div key={list.id} className="border-2 border-neutral-400 bg-neutral-50 p-4 hover:border-neutral-900">
+                  <div className="mb-1 text-sm font-bold text-neutral-900">{list.name}</div>
+                  <div className="text-xs text-neutral-600">{list.count} contatos</div>
+                </div>
+              ))}
+            </div>
+          </aside>
+        </main>
+
+        <Modal isOpen={showCreateListModal} onClose={handleCancelCreateList} title="Criar Nova Lista" size="md">
+          <div className="mb-6">
+            <label
+              htmlFor="list-name"
+              className="mb-2 block text-sm font-bold uppercase tracking-wider text-neutral-900"
+            >
+              Nome da Lista
+            </label>
+            <input
+              id="list-name"
+              type="text"
+              value={newListName}
+              onChange={(e) => setNewListName(e.target.value)}
+              disabled={creatingList}
+              placeholder="Ex: Clientes VIP"
+              className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none disabled:opacity-50"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !creatingList) {
+                  handleCreateList()
+                }
               }}
-              className="w-full border-2 border-neutral-900 bg-neutral-900 px-4 py-3 text-sm font-bold uppercase tracking-wider text-white hover:bg-neutral-800"
+            />
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={handleCancelCreateList}
+              disabled={creatingList}
+              className="flex-1 border-2 border-neutral-400 bg-white px-4 py-3 text-sm font-bold uppercase tracking-wider text-neutral-700 hover:border-neutral-900 disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleCreateList}
+              disabled={creatingList || !newListName.trim()}
+              className="flex-1 border-2 border-neutral-900 bg-neutral-900 px-4 py-3 text-sm font-bold uppercase tracking-wider text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {creatingList ? <LoadingSpinner size="sm" /> : "Criar Lista"}
+            </button>
+          </div>
+        </Modal>
+
+        <Modal
+          isOpen={selectedContact && !editingContact}
+          onClose={handleCloseDetails}
+          title="Detalhes do Contato"
+          size="lg"
+        >
+          <div className="space-y-4">
+            <div className="border-2 border-neutral-300 bg-neutral-50 p-4">
+              <div className="mb-1 text-xs font-bold uppercase tracking-wider text-neutral-600">Nome</div>
+              <div className="text-lg font-bold text-neutral-900">{selectedContact?.name}</div>
+            </div>
+
+            <div className="border-2 border-neutral-300 bg-neutral-50 p-4">
+              <div className="mb-1 text-xs font-bold uppercase tracking-wider text-neutral-600">Número</div>
+              <div className="text-lg text-neutral-900">{selectedContact?.number}</div>
+            </div>
+
+            {selectedContact?.email && (
+              <div className="border-2 border-neutral-300 bg-neutral-50 p-4">
+                <div className="mb-1 text-xs font-bold uppercase tracking-wider text-neutral-600">Email</div>
+                <div className="text-lg text-neutral-900">{selectedContact.email}</div>
+              </div>
+            )}
+
+            {selectedContact?.company && (
+              <div className="border-2 border-neutral-300 bg-neutral-50 p-4">
+                <div className="mb-1 text-xs font-bold uppercase tracking-wider text-neutral-600">Empresa</div>
+                <div className="text-lg text-neutral-900">{selectedContact.company}</div>
+              </div>
+            )}
+
+            {selectedContact?.notes && (
+              <div className="border-2 border-neutral-300 bg-neutral-50 p-4">
+                <div className="mb-1 text-xs font-bold uppercase tracking-wider text-neutral-600">Notas</div>
+                <div className="text-sm text-neutral-900">{selectedContact.notes}</div>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-6 flex gap-3">
+            <button
+              onClick={() => handleEditContact(selectedContact!)}
+              className="flex-1 border-2 border-neutral-900 bg-neutral-900 px-4 py-3 text-sm font-bold uppercase tracking-wider text-white hover:bg-neutral-800"
+            >
+              Editar Contato
+            </button>
+            <button
+              onClick={() => handleDeleteContact(selectedContact!)}
+              className="border-2 border-red-600 bg-red-600 px-6 py-3 text-sm font-bold uppercase tracking-wider text-white hover:bg-red-700"
+            >
+              Excluir
+            </button>
+          </div>
+        </Modal>
+
+        <Modal isOpen={!!editingContact && !!editForm} onClose={handleCancelEdit} title="Editar Contato" size="lg">
+          <div className="space-y-4">
+            <div>
+              <label className="mb-2 block text-sm font-bold uppercase tracking-wider text-neutral-900">Nome *</label>
+              <input
+                type="text"
+                value={editForm!.name}
+                onChange={(e) => handleEditFormChange("name", e.target.value)}
+                disabled={saving}
+                className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none disabled:opacity-50"
+                placeholder="Nome completo"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-bold uppercase tracking-wider text-neutral-900">Número *</label>
+              <input
+                type="tel"
+                value={editForm!.number}
+                onChange={(e) => handleEditFormChange("number", e.target.value)}
+                disabled={saving}
+                className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none disabled:opacity-50"
+                placeholder="+55 11 98765-4321"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-bold uppercase tracking-wider text-neutral-900">Email</label>
+              <input
+                type="email"
+                value={editForm!.email || ""}
+                onChange={(e) => handleEditFormChange("email", e.target.value)}
+                disabled={saving}
+                className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none disabled:opacity-50"
+                placeholder="email@exemplo.com"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-bold uppercase tracking-wider text-neutral-900">Empresa</label>
+              <input
+                type="text"
+                value={editForm!.company || ""}
+                onChange={(e) => handleEditFormChange("company", e.target.value)}
+                disabled={saving}
+                className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none disabled:opacity-50"
+                placeholder="Nome da empresa"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-bold uppercase tracking-wider text-neutral-900">Notas</label>
+              <textarea
+                value={editForm!.notes || ""}
+                onChange={(e) => handleEditFormChange("notes", e.target.value)}
+                disabled={saving}
+                rows={3}
+                className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none disabled:opacity-50"
+                placeholder="Observações sobre o contato..."
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-bold uppercase tracking-wider text-neutral-900">
+                Tags (separadas por vírgula)
+              </label>
+              <input
+                type="text"
+                value={editForm!.tags?.join(", ") || ""}
+                onChange={(e) =>
+                  handleEditFormChange(
+                    "tags",
+                    e.target.value.split(",").map((tag) => tag.trim()),
+                  )
+                }
+                disabled={saving}
+                className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none disabled:opacity-50"
+                placeholder="VIP, Ativo, Lead"
+              />
+            </div>
+          </div>
+
+          <div className="mt-6 flex gap-3">
+            <button
+              onClick={handleCancelEdit}
+              disabled={saving}
+              className="flex-1 border-2 border-neutral-400 bg-white px-4 py-3 text-sm font-bold uppercase tracking-wider text-neutral-700 hover:border-neutral-900 disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSaveContact}
+              disabled={saving || !editForm!.name.trim() || !editForm!.number.trim()}
+              className="flex-1 border-2 border-neutral-900 bg-neutral-900 px-4 py-3 text-sm font-bold uppercase tracking-wider text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {saving ? <LoadingSpinner size="sm" /> : "Salvar Alterações"}
+            </button>
+          </div>
+        </Modal>
+
+        <Modal
+          isOpen={!!deletingContact}
+          onClose={handleCancelDelete}
+          title="Confirmar Exclusão"
+          size="md"
+          titleStyle="border-red-600 text-red-600"
+        >
+          <div className="mb-6">
+            <p className="mb-3 text-sm text-neutral-900">
+              Tem certeza que deseja excluir o contato <strong>{deletingContact?.name}</strong>?
+            </p>
+            <div className="border-2 border-red-200 bg-red-50 p-3">
+              <p className="text-xs font-bold uppercase tracking-wider text-red-800">Atenção</p>
+              <p className="mt-1 text-xs text-red-700">
+                Esta ação não pode ser desfeita. Todos os dados do contato serão permanentemente removidos.
+              </p>
+            </div>
+          </div>
+
+          <div className="mb-6 border-2 border-neutral-300 bg-neutral-50 p-4">
+            <div className="mb-2 text-sm font-bold text-neutral-900">{deletingContact?.name}</div>
+            <div className="text-xs text-neutral-700">{deletingContact?.number}</div>
+            {deletingContact?.email && <div className="text-xs text-neutral-700">{deletingContact.email}</div>}
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={handleCancelDelete}
+              disabled={deleting}
+              className="flex-1 border-2 border-neutral-400 bg-white px-4 py-3 text-sm font-bold uppercase tracking-wider text-neutral-700 hover:border-neutral-900 disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleConfirmDelete}
+              disabled={deleting}
+              className="flex-1 border-2 border-red-600 bg-red-600 px-4 py-3 text-sm font-bold uppercase tracking-wider text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {deleting ? <LoadingSpinner size="sm" /> : "Sim, Excluir"}
+            </button>
+          </div>
+        </Modal>
+
+        <Modal
+          isOpen={showAddContactModal}
+          onClose={() => {
+            setShowAddContactModal(false)
+            setNewContact({ name: "", number: "", email: "", company: "", notes: "" })
+          }}
+          title="Adicionar Novo Contato"
+          size="lg"
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="mb-2 block text-sm font-bold uppercase tracking-wider text-neutral-900">Nome *</label>
+              <input
+                type="text"
+                value={newContact.name}
+                onChange={(e) => setNewContact({ ...newContact, name: e.target.value })}
+                disabled={addingContact}
+                className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none disabled:opacity-50"
+                placeholder="Nome completo"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-bold uppercase tracking-wider text-neutral-900">Número *</label>
+              <input
+                type="tel"
+                value={newContact.number}
+                onChange={(e) => setNewContact({ ...newContact, number: e.target.value })}
+                disabled={addingContact}
+                className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none disabled:opacity-50"
+                placeholder="+55 11 98765-4321"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-bold uppercase tracking-wider text-neutral-900">Email</label>
+              <input
+                type="email"
+                value={newContact.email}
+                onChange={(e) => setNewContact({ ...newContact, email: e.target.value })}
+                disabled={addingContact}
+                className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none disabled:opacity-50"
+                placeholder="email@exemplo.com"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-bold uppercase tracking-wider text-neutral-900">Empresa</label>
+              <input
+                type="text"
+                value={newContact.company}
+                onChange={(e) => setNewContact({ ...newContact, company: e.target.value })}
+                disabled={addingContact}
+                className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none disabled:opacity-50"
+                placeholder="Nome da empresa"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-bold uppercase tracking-wider text-neutral-900">Notas</label>
+              <textarea
+                value={newContact.notes}
+                onChange={(e) => setNewContact({ ...newContact, notes: e.target.value })}
+                disabled={addingContact}
+                rows={3}
+                className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none disabled:opacity-50"
+                placeholder="Observações sobre o contato..."
+              />
+            </div>
+          </div>
+
+          <div className="mt-6 flex gap-3">
+            <button
+              onClick={() => {
+                setShowAddContactModal(false)
+                setNewContact({ name: "", number: "", email: "", company: "", notes: "" })
+              }}
+              disabled={addingContact}
+              className="flex-1 border-2 border-neutral-400 bg-white px-4 py-3 text-sm font-bold uppercase tracking-wider text-neutral-700 hover:border-neutral-900 disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleAddContact}
+              disabled={addingContact || !newContact.name.trim() || !newContact.number.trim()}
+              className="flex-1 border-2 border-neutral-900 bg-neutral-900 px-4 py-3 text-sm font-bold uppercase tracking-wider text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {addingContact ? <LoadingSpinner size="sm" /> : "Adicionar Contato"}
+            </button>
+          </div>
+        </Modal>
+
+        <Modal
+          isOpen={showImportModal}
+          onClose={() => {
+            setShowImportModal(false)
+            if (fileInputRef.current) {
+              fileInputRef.current.value = ""
+            }
+          }}
+          title="Importar Contatos via CSV"
+          size="xl"
+        >
+          <div className="mb-6 border-2 border-blue-200 bg-blue-50 p-4">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-blue-800">Formato do arquivo CSV</p>
+            <p className="mb-3 text-xs text-blue-700">
+              O arquivo deve conter uma linha por contato com os campos separados por vírgula:
+            </p>
+            <code className="block border border-blue-300 bg-white p-2 text-xs text-neutral-900">
+              nome,telefone,email,empresa,notas
+            </code>
+            <p className="mt-3 text-xs text-blue-700">
+              Exemplo: João Silva,+55 11 98765-4321,joao@email.com,Empresa XYZ,Cliente VIP
+            </p>
+          </div>
+
+          <div className="mb-6">
+            <label className="mb-2 block text-sm font-bold uppercase tracking-wider text-neutral-900">
+              Selecione o arquivo CSV
+            </label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              onChange={handleImportCSV}
+              disabled={importing}
+              className="w-full border-2 border-neutral-400 bg-neutral-50 p-3 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none disabled:opacity-50"
+            />
+          </div>
+
+          {importing && (
+            <div className="mb-6 border-2 border-green-200 bg-green-50 p-4">
+              <p className="text-sm font-bold text-green-800">Importando contatos...</p>
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                setShowImportModal(false)
+                if (fileInputRef.current) {
+                  fileInputRef.current.value = ""
+                }
+              }}
+              disabled={importing}
+              className="flex-1 border-2 border-neutral-400 bg-white px-4 py-3 text-sm font-bold uppercase tracking-wider text-neutral-700 hover:border-neutral-900 disabled:opacity-50"
             >
               Fechar
             </button>
           </div>
-        </div>
-      )}
-    </div>
+        </Modal>
+
+        <Modal
+          isOpen={showListManagementModal}
+          onClose={() => {
+            setShowListManagementModal(false)
+            setSelectedContactForLists(null)
+            setContactLists([])
+          }}
+          title="Gerenciar Listas"
+          size="md"
+        >
+          <div className="mb-6">
+            <p className="mb-4 text-sm text-neutral-700">
+              Contato: <strong>{selectedContactForLists?.name}</strong>
+            </p>
+
+            {lists.length === 0 ? (
+              <div className="border-2 border-neutral-300 bg-neutral-50 p-4 text-center">
+                <p className="text-sm text-neutral-600">Nenhuma lista criada ainda.</p>
+                <p className="mt-1 text-xs text-neutral-500">Crie uma lista primeiro para adicionar contatos.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {lists.map((list) => {
+                  const isInList = contactLists.includes(list.id)
+                  return (
+                    <button
+                      key={list.id}
+                      onClick={() => handleToggleList(list.id)}
+                      className={`flex w-full items-center justify-between border-2 p-3 text-left transition-colors ${
+                        isInList
+                          ? "border-green-600 bg-green-50 hover:bg-green-100"
+                          : "border-neutral-400 bg-white hover:border-neutral-900"
+                      }`}
+                    >
+                      <span className="text-sm font-bold text-neutral-900">{list.name}</span>
+                      <span
+                        className={`text-xs font-bold uppercase tracking-wider ${
+                          isInList ? "text-green-700" : "text-neutral-500"
+                        }`}
+                      >
+                        {isInList ? "✓ Na lista" : "+ Adicionar"}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={() => {
+              setShowListManagementModal(false)
+              setSelectedContactForLists(null)
+              setContactLists([])
+            }}
+            className="w-full border-2 border-neutral-900 bg-neutral-900 px-4 py-3 text-sm font-bold uppercase tracking-wider text-white hover:bg-neutral-800"
+          >
+            Fechar
+          </button>
+        </Modal>
+      </div>
+    </AuthenticatedLayout>
   )
 }
